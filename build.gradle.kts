@@ -63,4 +63,15 @@ publishing {
 			from(components["java"])
 		}
 	}
+
+	repositories {
+		maven {
+			name = "lwgmr"
+			url = uri("https://lwgmr.elytra.cn/")
+			credentials {
+				username = "Taskeren"
+				password = project.findProperty("lwgmr.password") as? String
+			}
+		}
+	}
 }
