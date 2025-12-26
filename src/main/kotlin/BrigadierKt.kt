@@ -22,12 +22,12 @@ import kotlin.reflect.KProperty
 import kotlin.reflect.KType
 import kotlin.reflect.typeOf
 
-public fun <S> newLiteralArgumentBuilder(
+public inline fun <S> newLiteralArgumentBuilder(
 	name: String,
 	block: LiteralArgumentBuilder<S>.() -> Unit,
 ): LiteralArgumentBuilder<S> = LiteralArgumentBuilder.literal<S>(name).apply(block)
 
-public fun <S, T> newRequiredArgumentBuilder(
+public inline fun <S, T> newRequiredArgumentBuilder(
 	name: String,
 	argumentType: ArgumentType<T>,
 	block: RequiredArgumentBuilder<S, T>.() -> Unit,
@@ -36,7 +36,7 @@ public fun <S, T> newRequiredArgumentBuilder(
 /**
  * Start to build a command with the given [name] and register it to the given dispatcher.
  */
-public fun <S> CommandDispatcher<S>.registerCommand(
+public inline fun <S> CommandDispatcher<S>.registerCommand(
 	name: String,
 	block: LiteralArgumentBuilder<S>.() -> Unit,
 ): LiteralCommandNode<S> = this.register(newLiteralArgumentBuilder(name, block))
@@ -44,7 +44,7 @@ public fun <S> CommandDispatcher<S>.registerCommand(
 /**
  * Register a [LiteralArgumentBuilder] subcommand with given [name].
  */
-public fun <S, T : ArgumentBuilder<S, T>> ArgumentBuilder<S, T>.literal(
+public inline fun <S, T : ArgumentBuilder<S, T>> ArgumentBuilder<S, T>.literal(
 	name: String,
 	block: LiteralArgumentBuilder<S>.() -> Unit,
 ): T = this.then(newLiteralArgumentBuilder(name, block))
@@ -52,7 +52,7 @@ public fun <S, T : ArgumentBuilder<S, T>> ArgumentBuilder<S, T>.literal(
 /**
  * Register a [RequiredArgumentBuilder] subcommand with given [name] and [argumentType].
  */
-public fun <S, BuilderT : ArgumentBuilder<S, BuilderT>, ArgumentT> ArgumentBuilder<S, BuilderT>.argument(
+public inline fun <S, BuilderT : ArgumentBuilder<S, BuilderT>, ArgumentT> ArgumentBuilder<S, BuilderT>.argument(
 	name: String,
 	argumentType: ArgumentType<ArgumentT>,
 	block: RequiredArgumentBuilder<S, ArgumentT>.() -> Unit,
@@ -61,7 +61,7 @@ public fun <S, BuilderT : ArgumentBuilder<S, BuilderT>, ArgumentT> ArgumentBuild
 /**
  * Make a command execution block that always returns [Command.SINGLE_SUCCESS].
  */
-public fun <S, T : ArgumentBuilder<S, T>> ArgumentBuilder<S, T>.executesUnit(block: (CommandContext<S>) -> Unit): T =
+public inline fun <S, T : ArgumentBuilder<S, T>> ArgumentBuilder<S, T>.executesUnit(crossinline block: (CommandContext<S>) -> Unit): T =
 	this.executes {
 		block(it)
 		Command.SINGLE_SUCCESS
@@ -70,8 +70,8 @@ public fun <S, T : ArgumentBuilder<S, T>> ArgumentBuilder<S, T>.executesUnit(blo
 /**
  * Provide suggestions with a suspend function.
  */
-public fun <S, T> RequiredArgumentBuilder<S, T>.suggestsSuspended(
-	block: suspend (CommandContext<S>, SuggestionsBuilder) -> Suggestions,
+public inline fun <S, T> RequiredArgumentBuilder<S, T>.suggestsSuspended(
+	crossinline block: suspend (CommandContext<S>, SuggestionsBuilder) -> Suggestions,
 ): RequiredArgumentBuilder<S, T> =
 	suggests { ctx, builder ->
 		BrigadierKt.SuggestionProviderScope.future { block(ctx, builder) }
@@ -80,8 +80,8 @@ public fun <S, T> RequiredArgumentBuilder<S, T>.suggestsSuspended(
 /**
  * Provide suggestions with a blocking function.
  */
-public fun <S, T> RequiredArgumentBuilder<S, T>.suggestsBlocking(
-	block: (CommandContext<S>, SuggestionsBuilder) -> Unit,
+public inline fun <S, T> RequiredArgumentBuilder<S, T>.suggestsBlocking(
+	crossinline block: (CommandContext<S>, SuggestionsBuilder) -> Unit,
 ): RequiredArgumentBuilder<S, T> =
 	suggests { ctx, builder ->
 		block(ctx, builder)
@@ -107,8 +107,8 @@ internal typealias ContextValueGetter<S, T> = (CommandContext<S>, String) -> T
 public inline operator fun <S, reified T> CommandContext<S>.getValue(
 	thisRef: Any?,
 	prop: KProperty<*>,
-): T {
-	return when (typeOf<T>()) {
+): T =
+	when (typeOf<T>()) {
 		typeOf<String>() -> {
 			StringArgumentType.getString(this, prop.name) as T
 		}
@@ -143,16 +143,17 @@ public inline operator fun <S, reified T> CommandContext<S>.getValue(
 			}
 		}
 	}
-}
 
 /**
  * Get the values from [CommandContext] via [getter].
  */
-public infix fun <S, T> CommandContext<S>.via(getter: ContextValueGetter<S, T>): ReadOnlyProperty<Any?, T> =
+public inline infix fun <S, T> CommandContext<S>.via(crossinline getter: ContextValueGetter<S, T>): ReadOnlyProperty<Any?, T> =
 	ReadOnlyProperty { _, prop -> getter(this@via, prop.name) }
 
 public object BrigadierKt {
-	internal val SuggestionProviderScope = CoroutineScope(SupervisorJob() + CoroutineName("SuggestionProviderScope"))
+	@PublishedApi
+	internal val SuggestionProviderScope: CoroutineScope =
+		CoroutineScope(SupervisorJob() + CoroutineName("SuggestionProviderScope"))
 
 	@PublishedApi
 	internal val CommandContextValueGetters: MutableMap<KType, ContextValueGetter<*, *>> = mutableMapOf()
