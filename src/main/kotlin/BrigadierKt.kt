@@ -25,8 +25,7 @@ import kotlin.reflect.typeOf
 public fun <S> newLiteralArgumentBuilder(
 	name: String,
 	block: LiteralArgumentBuilder<S>.() -> Unit,
-): LiteralArgumentBuilder<S> =
-	LiteralArgumentBuilder.literal<S>(name).apply(block)
+): LiteralArgumentBuilder<S> = LiteralArgumentBuilder.literal<S>(name).apply(block)
 
 public fun <S, T> newRequiredArgumentBuilder(
 	name: String,
@@ -63,26 +62,31 @@ public fun <S, BuilderT : ArgumentBuilder<S, BuilderT>, ArgumentT> ArgumentBuild
  * Make a command execution block that always returns [Command.SINGLE_SUCCESS].
  */
 public fun <S, T : ArgumentBuilder<S, T>> ArgumentBuilder<S, T>.executesUnit(block: (CommandContext<S>) -> Unit): T =
-	this.executes { block(it); Command.SINGLE_SUCCESS }
+	this.executes {
+		block(it)
+		Command.SINGLE_SUCCESS
+	}
 
 /**
  * Provide suggestions with a suspend function.
  */
 public fun <S, T> RequiredArgumentBuilder<S, T>.suggestsSuspended(
 	block: suspend (CommandContext<S>, SuggestionsBuilder) -> Suggestions,
-): RequiredArgumentBuilder<S, T> = suggests { ctx, builder ->
-	BrigadierKt.SuggestionProviderScope.future { block(ctx, builder) }
-}
+): RequiredArgumentBuilder<S, T> =
+	suggests { ctx, builder ->
+		BrigadierKt.SuggestionProviderScope.future { block(ctx, builder) }
+	}
 
 /**
  * Provide suggestions with a blocking function.
  */
 public fun <S, T> RequiredArgumentBuilder<S, T>.suggestsBlocking(
 	block: (CommandContext<S>, SuggestionsBuilder) -> Unit,
-): RequiredArgumentBuilder<S, T> = suggests { ctx, builder ->
-	block(ctx, builder)
-	builder.buildFuture()
-}
+): RequiredArgumentBuilder<S, T> =
+	suggests { ctx, builder ->
+		block(ctx, builder)
+		builder.buildFuture()
+	}
 
 /**
  * A typealias for the functions that accepts the [CommandContext] and the argument name to retrieve the value of the argument.
@@ -100,19 +104,40 @@ internal typealias ContextValueGetter<S, T> = (CommandContext<S>, String) -> T
  * - TYPE: The type of the argument. Note that the custom [ArgumentTypes][ArgumentType] are not supported by default, you must register its getter by [BrigadierKt.registerCommandContextValueProvider].
  * - context: The [CommandContext] of the command execution.
  */
-public inline operator fun <S, reified T> CommandContext<S>.getValue(thisRef: Any?, prop: KProperty<*>): T {
-	return when(typeOf<T>()) {
-		typeOf<String>() -> StringArgumentType.getString(this, prop.name) as T
-		typeOf<Int>() -> IntegerArgumentType.getInteger(this, prop.name) as T
-		typeOf<Long>() -> LongArgumentType.getLong(this, prop.name) as T
-		typeOf<Float>() -> FloatArgumentType.getFloat(this, prop.name) as T
-		typeOf<Double>() -> DoubleArgumentType.getDouble(this, prop.name) as T
-		typeOf<Boolean>() -> BoolArgumentType.getBool(this, prop.name) as T
+public inline operator fun <S, reified T> CommandContext<S>.getValue(
+	thisRef: Any?,
+	prop: KProperty<*>,
+): T {
+	return when (typeOf<T>()) {
+		typeOf<String>() -> {
+			StringArgumentType.getString(this, prop.name) as T
+		}
+
+		typeOf<Int>() -> {
+			IntegerArgumentType.getInteger(this, prop.name) as T
+		}
+
+		typeOf<Long>() -> {
+			LongArgumentType.getLong(this, prop.name) as T
+		}
+
+		typeOf<Float>() -> {
+			FloatArgumentType.getFloat(this, prop.name) as T
+		}
+
+		typeOf<Double>() -> {
+			DoubleArgumentType.getDouble(this, prop.name) as T
+		}
+
+		typeOf<Boolean>() -> {
+			BoolArgumentType.getBool(this, prop.name) as T
+		}
+
 		else -> {
 			// handle non-built-in types
 			val getter = BrigadierKt.CommandContextValueGetters[typeOf<T>()]
-			if(getter != null) {
-				return getter(this, prop.name) as T
+			if (getter != null) {
+				getter(this, prop.name) as T
 			} else {
 				throw IllegalArgumentException("Unsupported type: ${typeOf<T>()}")
 			}
@@ -123,12 +148,10 @@ public inline operator fun <S, reified T> CommandContext<S>.getValue(thisRef: An
 /**
  * Get the values from [CommandContext] via [getter].
  */
-public infix fun <S, T> CommandContext<S>.via(getter: ContextValueGetter<S, T>): ReadOnlyProperty<Any?, T> {
-	return ReadOnlyProperty { _, prop -> getter(this@via, prop.name) }
-}
+public infix fun <S, T> CommandContext<S>.via(getter: ContextValueGetter<S, T>): ReadOnlyProperty<Any?, T> =
+	ReadOnlyProperty { _, prop -> getter(this@via, prop.name) }
 
 public object BrigadierKt {
-
 	internal val SuggestionProviderScope = CoroutineScope(SupervisorJob() + CoroutineName("SuggestionProviderScope"))
 
 	@PublishedApi
@@ -143,5 +166,4 @@ public object BrigadierKt {
 		val type = typeOf<T>()
 		CommandContextValueGetters[type] = getter
 	}
-
 }

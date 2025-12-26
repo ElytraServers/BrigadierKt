@@ -1,12 +1,25 @@
-import org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode
+import groovy.lang.Closure
 
 plugins {
-	kotlin("jvm") version "2.1.20"
+	kotlin("jvm") version "2.3.0"
+
+	id("org.jetbrains.dokka") version "2.1.0"
 	`maven-publish`
+	signing
+	id("com.vanniktech.maven.publish") version "0.35.0"
+
+	id("com.palantir.git-version") version "4.2.0"
 }
 
 group = "cn.taskeren"
-version = "1.0-SNAPSHOT"
+
+val gitVersion: Closure<String> by extra
+try {
+	version = gitVersion()
+} catch (e: Exception) {
+	println("Failed to get version from git")
+	e.printStackTrace()
+}
 
 repositories {
 	mavenCentral()
@@ -30,48 +43,36 @@ tasks.test {
 
 kotlin {
 	jvmToolchain(8)
-
-	explicitApi = ExplicitApiMode.Warning
+	explicitApiWarning()
 }
 
-publishing {
-	publications {
-		create<MavenPublication>("maven") {
-			groupId = project.group.toString()
-			artifactId = project.name
-			version = project.version.toString()
+mavenPublishing {
+	publishToMavenCentral(automaticRelease = true)
+	signAllPublications()
 
-			pom {
-				name = project.name
-				description = project.description
-				url = "https://github.com/ElytraServers/BrigadierKt"
-				licenses {
-					license {
-						name = "MIT License"
-						url = "https://opensource.org/license/mit"
-					}
-				}
-				developers {
-					developer {
-						id = "taskeren"
-						name = "Taskeren"
-						email = "r0yalist^outlook.com"
-					}
-				}
+	coordinates("cn.elytra", "brigadier-kt", "${project.version}".removePrefix("v"))
+	pom {
+		name = "Brigadier Kotlin Extension"
+		description = "Add extension methods to Brigadier things."
+		inceptionYear = "2025"
+		url = "https://github.com/ElytraServers/BrigadierKt"
+		licenses {
+			license {
+				name = "MIT License"
+				url = "https://github.com/ElytraServers/BrigadierKt/blob/master/LICENSE"
 			}
-
-			from(components["java"])
 		}
-	}
-
-	repositories {
-		maven {
-			name = "lwgmr"
-			url = uri("https://lwgmr.elytra.cn/")
-			credentials {
-				username = "Taskeren"
-				password = project.findProperty("lwgmr.password") as? String
+		developers {
+			developer {
+				id = "taskeren"
+				name = "Taskeren"
+				url = "https://github.com/Taskeren"
 			}
+		}
+		scm {
+			url = "https://github.com/ElytraServers/BrigadierKt"
+			connection = "scm:git:git://github.com/ElytraServers/BrigadierKt.git"
+			developerConnection = "scm:git:ssh://github.com/ElytraServers/BrigadierKt.git"
 		}
 	}
 }
