@@ -8,7 +8,7 @@ plugins {
 	signing
 	id("com.vanniktech.maven.publish") version "0.35.0"
 
-	id("com.palantir.git-version") version "4.2.0"
+	id("com.palantir.git-version") version "4.3.0"
 }
 
 group = "cn.taskeren"
