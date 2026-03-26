@@ -3,7 +3,7 @@ import groovy.lang.Closure
 plugins {
 	kotlin("jvm") version "2.3.20"
 
-	id("org.jetbrains.dokka") version "2.1.0"
+	id("org.jetbrains.dokka") version "2.2.0"
 	`maven-publish`
 	signing
 	id("com.vanniktech.maven.publish") version "0.36.0"
