@@ -32,7 +32,7 @@ repositories {
 dependencies {
 	api("com.mojang:brigadier:1.3.10")
 	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
-	implementation("org.slf4j:slf4j-api:2.0.18")
+	implementation("org.slf4j:slf4j-api:2.0.19")
 
 	testImplementation(kotlin("test"))
 }
