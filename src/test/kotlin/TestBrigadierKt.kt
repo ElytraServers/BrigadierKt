@@ -1,4 +1,5 @@
 import com.github.taskeren.brigadier_kt.*
+import com.github.taskeren.brigadier_kt.executesKt
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.exceptions.CommandSyntaxException
@@ -7,7 +8,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 internal class TestBrigadierKt {
-
 	object CommandSource {
 		var vip: Boolean = true
 	}
@@ -20,14 +20,13 @@ internal class TestBrigadierKt {
 
 		dispatcher.registerCommand("test") {
 			literal("test") {
-				executesUnit {
+				executesKt {
 					valueHolder = "test"
 				}
 			}
 
 			argument("hello", StringArgumentType.string()) {
-
-				executesUnit { ctx ->
+				executesKt { ctx ->
 					val hello: String by ctx
 					valueHolder = hello
 				}
@@ -46,26 +45,24 @@ internal class TestBrigadierKt {
 		assertThrows<CommandSyntaxException> {
 			dispatcher.execute("test \"world\"", CommandSource)
 		}
-
 	}
 
 	@Test
-	fun `Test via`() {
+	fun `Test context`() {
 		val dispatcher = CommandDispatcher<CommandSource>()
 
 		var valueHolder = ""
-
 		dispatcher.registerCommand("test") {
-			argument("value", StringArgumentType.string()) {
-				executesUnit { ctx ->
-					val value by ctx.via(StringArgumentType::getString)
-					valueHolder = value
+			argumentContext("value", StringArgumentType.string()) { value ->
+				executesContext {
+					println("Value: ${value()}")
+					valueHolder = value()
+					1
 				}
 			}
 		}
 
-		dispatcher.execute("test \"hello\"", CommandSource)
-		assertEquals("hello", valueHolder)
+		dispatcher.execute("""test "Bonjour"""", CommandSource)
+		assertEquals("Bonjour", valueHolder)
 	}
-
 }

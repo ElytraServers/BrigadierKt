@@ -4,7 +4,7 @@ package com.github.taskeren.brigadier_kt
 
 import com.mojang.brigadier.Command
 import com.mojang.brigadier.CommandDispatcher
-import com.mojang.brigadier.arguments.*
+import com.mojang.brigadier.arguments.ArgumentType
 import com.mojang.brigadier.builder.ArgumentBuilder
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import com.mojang.brigadier.builder.RequiredArgumentBuilder
@@ -17,10 +17,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.future.future
 import org.slf4j.LoggerFactory
-import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
-import kotlin.reflect.KType
-import kotlin.reflect.typeOf
 
 public inline fun <S> newLiteralArgumentBuilder(
 	name: String,
@@ -61,11 +58,9 @@ public inline fun <S, BuilderT : ArgumentBuilder<S, BuilderT>, ArgumentT> Argume
 /**
  * Make a command execution block that always returns [Command.SINGLE_SUCCESS].
  */
+@Deprecated("Deprecated function.", ReplaceWith("this.executesKt(block)"))
 public inline fun <S, T : ArgumentBuilder<S, T>> ArgumentBuilder<S, T>.executesUnit(crossinline block: (CommandContext<S>) -> Unit): T =
-	this.executes {
-		block(it)
-		Command.SINGLE_SUCCESS
-	}
+	executesKt { block(it) }
 
 /**
  * Provide suggestions with a suspend function.
@@ -89,82 +84,31 @@ public inline fun <S, T> RequiredArgumentBuilder<S, T>.suggestsBlocking(
 	}
 
 /**
- * A typealias for the functions that accepts the [CommandContext] and the argument name to retrieve the value of the argument.
- *
- * For example: [StringArgumentType.getString], [IntegerArgumentType.getInteger], etc.
- */
-internal typealias ContextValueGetter<S, T> = (CommandContext<S>, String) -> T
-
-/**
  * The argument value getter.
  *
  * `val value: TYPE by context`.
  *
  * - value: The name of the argument, case-sensitive.
- * - TYPE: The type of the argument. Note that the custom [ArgumentTypes][ArgumentType] are not supported by default, you must register its getter by [BrigadierKt.registerCommandContextValueProvider].
+ * - TYPE: The type of the argument.
  * - context: The [CommandContext] of the command execution.
  */
 public inline operator fun <S, reified T> CommandContext<S>.getValue(
 	thisRef: Any?,
 	prop: KProperty<*>,
-): T =
-	when (typeOf<T>()) {
-		typeOf<String>() -> {
-			StringArgumentType.getString(this, prop.name) as T
-		}
-
-		typeOf<Int>() -> {
-			IntegerArgumentType.getInteger(this, prop.name) as T
-		}
-
-		typeOf<Long>() -> {
-			LongArgumentType.getLong(this, prop.name) as T
-		}
-
-		typeOf<Float>() -> {
-			FloatArgumentType.getFloat(this, prop.name) as T
-		}
-
-		typeOf<Double>() -> {
-			DoubleArgumentType.getDouble(this, prop.name) as T
-		}
-
-		typeOf<Boolean>() -> {
-			BoolArgumentType.getBool(this, prop.name) as T
-		}
-
-		else -> {
-			// handle non-built-in types
-			val getter = BrigadierKt.CommandContextValueGetters[typeOf<T>()]
-			if (getter != null) {
-				getter(this, prop.name) as T
-			} else {
-				throw IllegalArgumentException("Unsupported type: ${typeOf<T>()}")
-			}
-		}
-	}
-
-/**
- * Get the values from [CommandContext] via [getter].
- */
-public inline infix fun <S, T> CommandContext<S>.via(crossinline getter: ContextValueGetter<S, T>): ReadOnlyProperty<Any?, T> =
-	ReadOnlyProperty { _, prop -> getter(this@via, prop.name) }
+): T = getArgument(prop.name)
 
 public object BrigadierKt {
 	@PublishedApi
 	internal val SuggestionProviderScope: CoroutineScope =
 		CoroutineScope(SupervisorJob() + CoroutineName("SuggestionProviderScope"))
 
-	@PublishedApi
-	internal val CommandContextValueGetters: MutableMap<KType, ContextValueGetter<*, *>> = mutableMapOf()
-
 	internal val logger = LoggerFactory.getLogger("BrigadierKt")
-
-	/**
-	 * Register a custom [ArgumentType] with its value getter to make it available in `by` syntax.
-	 */
-	public inline fun <reified T> registerCommandContextValueProvider(noinline getter: (CommandContext<*>, String) -> T) {
-		val type = typeOf<T>()
-		CommandContextValueGetters[type] = getter
-	}
 }
+
+/**
+ * Get the stored argument value in the context.
+ *
+ * @throws IllegalArgumentException if the value is absent or type mismatches.
+ */
+@Throws(IllegalArgumentException::class)
+public inline fun <S, reified T> CommandContext<S>.getArgument(name: String): T = getArgument(name, T::class.java)
